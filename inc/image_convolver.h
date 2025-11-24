@@ -1,4 +1,4 @@
-#pragma gaussian
+#pragma once
 
 #include <vector>
 #include <string>
@@ -33,6 +33,16 @@ public:
      * @return std::vector<unsigned char> Буфер с обработанным изображением.
      */
     std::vector<unsigned char> process_default(const unsigned char* img_in, int w, int h);
+
+        /**
+     * @brief Выполняет свертку RGB изображения.
+     * Картинка передается по указателю, результат возвращается вектором (RAII).
+     * 
+     * @param img_in Указатель на исходные данные.
+     * @param w Ширина изображения.
+     * @param h Высота изображения.
+     * @return std::vector<unsigned char> Буфер с обработанным изображением.
+     */
     std::vector<unsigned char> process_SIMD(const unsigned char* img_in, int w, int h);
 
     /**

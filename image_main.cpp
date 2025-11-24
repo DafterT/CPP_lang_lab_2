@@ -5,9 +5,9 @@
 #include <iostream>
 #include <cstring>
 
-#include "gaussian.h" // Твой заголовочный файл
+#include "image_convolver.h" // Твой заголовочный файл
 
-// Вспомогательная функция для генерации "фейкового" ядра Гаусса
+// Вспомогательная функция для генерации ядра Гаусса
 // Нам не важна математическая точность значений для теста скорости, главное размер
 std::vector<float> generateKernel(int dim) {
     std::vector<float> k(dim * dim);
@@ -79,7 +79,6 @@ public:
 
 // 1. Бенчмарк для DEFAULT (обычный C++)
 BENCHMARK_DEFINE_F(BlurFixture, BM_ProcessDefault)(benchmark::State& state) {
-    // Прогрев включен в библиотеку benchmark автоматически (она запускает итерации пока не стабилизируется)
     for (auto _ : state) {
         // Код, который замеряем
         std::vector<unsigned char> res = convolver->process_default(input_img.data(), w, h);

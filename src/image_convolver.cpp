@@ -1,4 +1,4 @@
-#include "gaussian.h"
+#include "image_convolver.h"
 #include <iostream>
 #include <algorithm>
 
