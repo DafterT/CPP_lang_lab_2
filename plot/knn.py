@@ -63,23 +63,19 @@ df = pd.DataFrame(records)
 unique_dims = sorted(df['Dimension'].unique())
 
 for dim in unique_dims:
-    plt.figure(figsize=(14, 8))
+    plt.figure(figsize=(14, 9)) # Чуть увеличил высоту для подписей
     
-    # Фильтруем данные для текущей размерности
     subset = df[df['Dimension'] == dim]
     
     # Рисуем график
-    # X = Размер датасета
-    # Y = Скорость
-    # Hue = Метод
-    # Т.к. у нас есть разные K, seaborn автоматически покажет среднее значение 
-    # и доверительный интервал (черная полоска на столбце).
+    # Можно добавить errorbar=None, если хочешь вообще убрать "палки"
     ax = sns.barplot(
         data=subset,
         x='Dataset Size (N)',
         y='Speed (GB/s)',
         hue='Method',
-        palette="viridis"
+        palette="viridis",
+        errorbar='sd' # 'sd' - стандартное отклонение (или 'ci' для доверительного интервала)
     )
     
     plt.title(f'Производительность KNN (Vector Dim: {dim})', fontsize=16, pad=20)
@@ -87,9 +83,21 @@ for dim in unique_dims:
     plt.xlabel('Количество векторов в базе (N)', fontsize=14)
     plt.legend(title='Реализация', fontsize=12)
     
-    # Подписи значений (немного сложнее из-за плотности, делаем их вертикальными)
+    # === ИСПРАВЛЕНИЕ ПОДПИСЕЙ ===
     for container in ax.containers:
-        ax.bar_label(container, fmt='%.2f', padding=3, rotation=90, fontsize=9)
+        ax.bar_label(
+            container, 
+            fmt='%.2f', 
+            padding=5,           # Отступ чуть больше
+            rotation=0,         # Вертикальный текст
+            fontsize=14,
+            # Добавляем белую подложку (bbox), чтобы текст не сливался с "палкой"
+            bbox=dict(boxstyle="square,pad=0.2", fc="white", ec="none", alpha=0.7) 
+        )
+
+    # Увеличим верхнюю границу графика на 15%, чтобы подписи длинных столбцов не обрезались
+    ymin, ymax = ax.get_ylim()
+    ax.set_ylim(ymin, ymax * 1.15)
 
     # Сохраняем
     filename = f'knn_benchmark_dim_{dim}.png'
