@@ -8,7 +8,7 @@ import os
 sns.set_theme(style="whitegrid")
 
 # Путь к файлу с результатами
-FILENAME = '../build/results.json' 
+FILENAME = '../build/results_image.json' 
 
 if not os.path.exists(FILENAME):
     print(f"Ошибка: Файл {FILENAME} не найден. Запустите бенчмарк сначала.")
@@ -77,7 +77,7 @@ for k_size in kernel_sizes:
         ax.bar_label(container, fmt='%.3f', padding=3, fontsize=10)
     
     # Сохраняем в отдельный файл
-    filename = f'benchmark_kernel_{k_size}.png'
+    filename = f'benchmark_image_kernel_{k_size}.png'
     plt.tight_layout()
     plt.savefig(filename, dpi=150) # dpi=150 для четкости
     print(f"Сохранено: {filename}")
