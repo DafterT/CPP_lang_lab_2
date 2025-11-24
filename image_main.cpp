@@ -118,10 +118,10 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
 
 BENCHMARK_REGISTER_F(BlurFixture, BM_ProcessDefault)
     ->Apply(CustomArguments)
-    ->Unit(benchmark::kMillisecond); // Вывод времени в мс
+    ->Unit(benchmark::kMicrosecond); // Вывод времени
 
 BENCHMARK_REGISTER_F(BlurFixture, BM_ProcessSIMD)
     ->Apply(CustomArguments)
-    ->Unit(benchmark::kMillisecond);
+    ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

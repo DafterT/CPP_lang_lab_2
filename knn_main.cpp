@@ -82,12 +82,12 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
 
     // 2. Длина вектора: от 2 до 128 (степени двойки)
     std::vector<int> dims;
-    for (int d = 2; d <= 128; d *= 2) {
+    for (int d = 2; d <= 128; d *= 4) {
         dims.push_back(d);
     }
 
     // 3. K ближайших: от 1 до 32 (используем степени двойки для покрытия диапазона)
-    std::vector<int> ks = {1, 2, 4, 8, 16, 32};
+    std::vector<int> ks = {1, 8, 32};
 
     for (int s : sizes) {
         for (int d : dims) {
