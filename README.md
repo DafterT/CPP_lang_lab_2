@@ -13,3 +13,10 @@ cmake --build .
 ```
 ./run_knn_benchmark --benchmark_out=results_knn.json --benchmark_out_format=json
 ```
+
+```
+lscpu | grep -i avx
+```
+```
+grep "model name" /proc/cpuinfo | head -1
+```

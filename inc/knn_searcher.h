@@ -29,6 +29,12 @@ public:
         int k
     );
 
+    static std::vector<int> find_simd_soa(
+        const std::vector<std::vector<float>>& dataset,
+        const std::vector<float>& query,
+        int k
+    );
+
 private:
     // Вспомогательные функции для подсчета расстояний
     static float get_euclidean_distance_naive(const std::vector<float>& a, const std::vector<float>& b);

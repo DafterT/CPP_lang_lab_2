@@ -133,7 +133,6 @@ std::vector<unsigned char> ImageConvolver::process_SIMD(const unsigned char* img
             __m512i vRes32 = _mm512_cvtps_epi32(vSum);
 
             // 2. Упаковка 32-бит int -> 8-бит uchar
-            // clamp (0-255) и упаковку из 512 бит обратно в 128 бит.
             __m128i vRes8 = _mm512_cvtusepi32_epi8(vRes32);
 
             // 3. Сохраняем 16 байт (4 пикселя) в память
@@ -167,8 +166,6 @@ std::vector<unsigned char> ImageConvolver::process_SIMD(const unsigned char* img
         }
     }
     
-    // Очистка верхних битов
-    _mm256_zeroupper(); 
 
     // Обработка границ (копирование)
     for (int y = 0; y < h; ++y) {

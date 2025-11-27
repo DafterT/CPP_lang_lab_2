@@ -134,3 +134,95 @@ std::vector<int> KnnSearcher::find_simd(
     }
     return result;
 }
+
+// --------------------------------------------------------------------
+// 4. SIMD РЕАЛИЗАЦИЯ (AVX-512) сразу несколько элементов в массиве
+// --------------------------------------------------------------------
+
+std::vector<int> KnnSearcher::find_simd_soa(
+    const std::vector<std::vector<float>>& dataset,
+    const std::vector<float>& query,
+    int k
+) {
+    const size_t N   = dataset.size();
+    const size_t dim = query.size();
+
+    std::vector<int> result;
+    if (N == 0 || dim == 0 || k <= 0) {
+        return result;
+    }
+
+    // Временный SoA-буфер: [dim0 всех точек][dim1 всех точек]...
+    std::vector<float> data_soa;
+    data_soa.resize(N * dim);
+
+    for (size_t i = 0; i < N; ++i) {
+        const std::vector<float>& v = dataset[i];
+        // при желании можно добавить assert(v.size() == dim);
+        const float* src = v.data();
+        for (size_t d = 0; d < dim; ++d) {
+            data_soa[d * N + i] = src[d];
+        }
+    }
+
+    const float* qptr = query.data();
+
+    std::vector<std::pair<float,int>> distances;
+    distances.reserve(N);
+
+    alignas(64) float block_dist[16];
+
+    size_t i = 0;
+    // Основные блоки по 16 точек
+    for (; i + 16 <= N; i += 16) {
+        __mmask16 mask = 0xFFFF;
+        __m512 sum = _mm512_setzero_ps();
+
+        for (size_t d = 0; d < dim; ++d) {
+            const float* base = data_soa.data() + d * N + i; // 16 значений d-ой координаты
+            __m512 x = _mm512_maskz_loadu_ps(mask, base);
+            __m512 q = _mm512_set1_ps(qptr[d]);              // broadcast query[d]
+            __m512 diff = _mm512_sub_ps(x, q);
+            sum = _mm512_fmadd_ps(diff, diff, sum);          // sum += diff * diff
+        }
+
+        __m512 res = _mm512_sqrt_ps(sum);
+        _mm512_store_ps(block_dist, res);
+
+        for (int lane = 0; lane < 16; ++lane) {
+            distances.emplace_back(block_dist[lane], int(i + lane));
+        }
+    }
+
+    // Хвост < 16 точек
+    if (i < N) {
+        unsigned rem = static_cast<unsigned>(N - i);
+        __mmask16 mask = (__mmask16)((1u << rem) - 1u);
+
+        __m512 sum = _mm512_setzero_ps();
+
+        for (size_t d = 0; d < dim; ++d) {
+            const float* base = data_soa.data() + d * N + i;
+            __m512 x = _mm512_maskz_loadu_ps(mask, base);
+            __m512 q = _mm512_set1_ps(qptr[d]);
+            __m512 diff = _mm512_sub_ps(x, q);
+            sum = _mm512_fmadd_ps(diff, diff, sum);
+        }
+
+        __m512 res = _mm512_sqrt_ps(sum);
+        _mm512_mask_storeu_ps(block_dist, mask, res);
+
+        for (unsigned lane = 0; lane < rem; ++lane) {
+            distances.emplace_back(block_dist[lane], int(i + lane));
+        }
+    }
+
+    std::sort(distances.begin(), distances.end());
+
+    result.reserve(k);
+    for (int idx = 0; idx < k && idx < static_cast<int>(distances.size()); ++idx) {
+        result.push_back(distances[idx].second);
+    }
+
+    return result;
+}

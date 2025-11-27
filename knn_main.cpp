@@ -60,7 +60,7 @@ BENCHMARK_DEFINE_F(KnnFixture, BM_FindNaive)(benchmark::State& state) {
 // 2. Бенчмарк для SIMD (AVX-512) реализации
 BENCHMARK_DEFINE_F(KnnFixture, BM_FindSIMD)(benchmark::State& state) {
     for (auto _ : state) {
-        std::vector<int> result = KnnSearcher::find_simd(data.dataset, data.query, k);
+        std::vector<int> result = KnnSearcher::find_simd_soa(data.dataset, data.query, k);
         benchmark::DoNotOptimize(result.data());
     }
 
