@@ -87,7 +87,7 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
     }
 
     // 3. K ближайших: от 1 до 32 (используем степени двойки для покрытия диапазона)
-    std::vector<int> ks = {1, 8, 32};
+    std::vector<int> ks = {1};
 
     for (int s : sizes) {
         for (int d : dims) {

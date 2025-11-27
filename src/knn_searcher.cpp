@@ -139,89 +139,87 @@ std::vector<int> KnnSearcher::find_simd(
 // 4. SIMD РЕАЛИЗАЦИЯ (AVX-512) сразу несколько элементов в массиве
 // --------------------------------------------------------------------
 
+inline __m512 kernel_16_vectors(
+    const float* const* ptrs, 
+    const float* qptr,        
+    size_t dim
+) {
+    __m512 sum = _mm512_setzero_ps();
+
+    alignas(64) float slice[16];
+
+    for (size_t d = 0; d < dim; ++d) {
+        for (int lane = 0; lane < 16; ++lane) {
+            slice[lane] = ptrs[lane][d];
+        }
+
+        __m512 v_dim = _mm512_load_ps(slice);
+        
+        __m512 v_query = _mm512_set1_ps(qptr[d]);
+        __m512 diff = _mm512_sub_ps(v_dim, v_query);
+        sum = _mm512_fmadd_ps(diff, diff, sum);
+    }
+
+    return _mm512_sqrt_ps(sum);
+}
+
 std::vector<int> KnnSearcher::find_simd_soa(
     const std::vector<std::vector<float>>& dataset,
     const std::vector<float>& query,
     int k
 ) {
-    const size_t N   = dataset.size();
+    const size_t N = dataset.size();
     const size_t dim = query.size();
-
     std::vector<int> result;
-    if (N == 0 || dim == 0 || k <= 0) {
-        return result;
-    }
-
-    // Временный SoA-буфер: [dim0 всех точек][dim1 всех точек]...
-    std::vector<float> data_soa;
-    data_soa.resize(N * dim);
-
-    for (size_t i = 0; i < N; ++i) {
-        const std::vector<float>& v = dataset[i];
-        // при желании можно добавить assert(v.size() == dim);
-        const float* src = v.data();
-        for (size_t d = 0; d < dim; ++d) {
-            data_soa[d * N + i] = src[d];
-        }
-    }
+    
+    if (N == 0 || dim == 0 || k <= 0) return result;
 
     const float* qptr = query.data();
-
-    std::vector<std::pair<float,int>> distances;
+    
+    std::vector<std::pair<float, int>> distances;
     distances.reserve(N);
 
-    alignas(64) float block_dist[16];
+    alignas(64) float block_dists[16];
+    const float* ptrs[16];
 
     size_t i = 0;
-    // Основные блоки по 16 точек
+    // Главный цикл: шаг 16 векторов
     for (; i + 16 <= N; i += 16) {
-        __mmask16 mask = 0xFFFF;
-        __m512 sum = _mm512_setzero_ps();
-
-        for (size_t d = 0; d < dim; ++d) {
-            const float* base = data_soa.data() + d * N + i; // 16 значений d-ой координаты
-            __m512 x = _mm512_maskz_loadu_ps(mask, base);
-            __m512 q = _mm512_set1_ps(qptr[d]);              // broadcast query[d]
-            __m512 diff = _mm512_sub_ps(x, q);
-            sum = _mm512_fmadd_ps(diff, diff, sum);          // sum += diff * diff
+        for (int j = 0; j < 16; ++j) {
+            ptrs[j] = dataset[i + j].data();
         }
 
-        __m512 res = _mm512_sqrt_ps(sum);
-        _mm512_store_ps(block_dist, res);
+        __m512 res_vec = kernel_16_vectors(ptrs, qptr, dim);
+        _mm512_store_ps(block_dists, res_vec);
 
-        for (int lane = 0; lane < 16; ++lane) {
-            distances.emplace_back(block_dist[lane], int(i + lane));
+        for (int j = 0; j < 16; ++j) {
+            distances.emplace_back(block_dists[j], (int)(i + j));
         }
     }
 
-    // Хвост < 16 точек
+    // Обработка остатка (tail case)
     if (i < N) {
-        unsigned rem = static_cast<unsigned>(N - i);
-        __mmask16 mask = (__mmask16)((1u << rem) - 1u);
-
-        __m512 sum = _mm512_setzero_ps();
-
-        for (size_t d = 0; d < dim; ++d) {
-            const float* base = data_soa.data() + d * N + i;
-            __m512 x = _mm512_maskz_loadu_ps(mask, base);
-            __m512 q = _mm512_set1_ps(qptr[d]);
-            __m512 diff = _mm512_sub_ps(x, q);
-            sum = _mm512_fmadd_ps(diff, diff, sum);
+        size_t remaining = N - i;
+        for (size_t j = 0; j < remaining; ++j) {
+            ptrs[j] = dataset[i + j].data();
+        }
+        for (size_t j = remaining; j < 16; ++j) {
+            ptrs[j] = ptrs[0]; 
         }
 
-        __m512 res = _mm512_sqrt_ps(sum);
-        _mm512_mask_storeu_ps(block_dist, mask, res);
+        __m512 res_vec = kernel_16_vectors(ptrs, qptr, dim);
+        _mm512_store_ps(block_dists, res_vec);
 
-        for (unsigned lane = 0; lane < rem; ++lane) {
-            distances.emplace_back(block_dist[lane], int(i + lane));
+        for (size_t j = 0; j < remaining; ++j) {
+            distances.emplace_back(block_dists[j], (int)(i + j));
         }
     }
 
     std::sort(distances.begin(), distances.end());
 
     result.reserve(k);
-    for (int idx = 0; idx < k && idx < static_cast<int>(distances.size()); ++idx) {
-        result.push_back(distances[idx].second);
+    for (int j = 0; j < k && j < (int)distances.size(); ++j) {
+        result.push_back(distances[j].second);
     }
 
     return result;
