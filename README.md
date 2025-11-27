@@ -13,10 +13,11 @@ cmake --build .
 ```
 ./run_knn_benchmark --benchmark_out=results_knn.json --benchmark_out_format=json
 ```
-
+Получить доступные инструкции
 ```
 lscpu | grep -i avx
 ```
+Получить название процессора
 ```
 grep "model name" /proc/cpuinfo | head -1
 ```
